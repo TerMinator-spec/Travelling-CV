@@ -1,0 +1,40 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [ "main" ] # Triggers the deployment on push to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        rm: true # Clean up the SSH key after use
+        script: |
+          echo "Starting automated deployment..."
+          
+          # 1. Ensure the directory exists
+          mkdir -p ~/travelling-cv
+          cd ~/travelling-cv
+          
+          # 2. If it's the first time, clone the repo. If not, pull the latest changes.
+          if [ ! -d ".git" ]; then
+            git clone https://github.com/${{ github.repository }}.git .
+          else
+            git pull origin main
+          fi
+          
+          # 3. Use Docker Compose to rebuild and restart the updated containers
+          docker-compose down
+          docker-compose up -d --build
+          
+          echo "Deployment successful!"

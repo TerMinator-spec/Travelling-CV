@@ -18,7 +18,6 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        rm: true # Clean up the SSH key after use
         script: |
           echo "Starting automated deployment..."
           

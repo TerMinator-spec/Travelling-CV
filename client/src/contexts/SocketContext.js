@@ -18,9 +18,13 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    // Initialize socket connection dynamically matching the current host port (default 3000)
-    // The Next.js proxy will seamlessly route the /socket.io requests to the backend (5000)
-    const newSocket = io({
+    // In local development (next dev), WebSockets natively hang because of proxy bugs.
+    // To solve this, we connect directly to port 5000 if we detect 'localhost', exactly as it was originally.
+    // But in production, we seamlessly connect to the current Live Domain and let Nginx/Next handle the proxy.
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const socketUrl = isLocalhost ? 'http://localhost:5000' : (typeof window !== 'undefined' ? window.location.origin : '');
+
+    const newSocket = io(socketUrl, {
       path: '/socket.io',
       auth: { token },
       transports: ['websocket', 'polling']

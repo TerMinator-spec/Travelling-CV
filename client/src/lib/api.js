@@ -68,6 +68,7 @@ export const api = {
   discoverTravelers: (params = {}) => request(`/discover?${new URLSearchParams(params)}`),
   getCompatibility: (userId) => request(`/discover/compatibility/${userId}`),
   search: (params) => request(`/discover/search?${new URLSearchParams(params)}`),
+  geocode: (query) => request(`/discover/geocode?q=${encodeURIComponent(query)}`),
 
   // Collaboration
   sendJoinRequest: (data) => request('/collaboration/join-request', { method: 'POST', body: data }),

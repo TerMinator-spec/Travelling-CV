@@ -59,6 +59,23 @@ router.get('/compatibility/:userId', authenticateToken, (req, res) => {
   res.json(result);
 });
 
+// Proxy geocoding to avoid frontend CORS / User-Agent issues
+router.get('/geocode', async (req, res) => {
+  if (!req.query.q) return res.json([]);
+  try {
+    const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(req.query.q)}&count=1&language=en&format=json`);
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      res.json([{ lat: data.results[0].latitude, lon: data.results[0].longitude }]);
+    } else {
+      res.json([]);
+    }
+  } catch (err) {
+    console.error('Proxy geocoding failed:', err);
+    res.status(500).json({ error: 'Geocoding failed' });
+  }
+});
+
 // Search
 router.get('/search', (req, res) => {
   const { q, type = 'all' } = req.query;

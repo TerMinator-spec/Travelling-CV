@@ -1,4 +1,9 @@
 {
-  "/page": "app/page.js",
-  "/auth/page": "app/auth/page.js"
+  "/feed/page": "app/feed/page.js",
+  "/profile/[id]/page": "app/profile/[id]/page.js",
+  "/discover/page": "app/discover/page.js",
+  "/discover/map/page": "app/discover/map/page.js",
+  "/groups/page": "app/groups/page.js",
+  "/trips/page": "app/trips/page.js",
+  "/posts/[id]/page": "app/posts/[id]/page.js"
 }

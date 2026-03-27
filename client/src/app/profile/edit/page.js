@@ -13,7 +13,7 @@ export default function EditProfilePage() {
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [newHistory, setNewHistory] = useState({ country: '', city: '', visit_date: '' });
+  const [newHistory, setNewHistory] = useState({ country: '', city: '', visit_date: '', description: '', rating: '', photos: null });
   const [newGallery, setNewGallery] = useState({ file: null, caption: '' });
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [message, setMessage] = useState('');
@@ -73,9 +73,16 @@ export default function EditProfilePage() {
       formData.append('country', newHistory.country);
       formData.append('city', newHistory.city);
       formData.append('visit_date', newHistory.visit_date);
+      if (newHistory.description) formData.append('description', newHistory.description);
+      if (newHistory.rating) formData.append('rating', newHistory.rating);
+      if (newHistory.photos && newHistory.photos.length > 0) {
+        Array.from(newHistory.photos).forEach(file => {
+          formData.append('photos', file);
+        });
+      }
       const entry = await api.addTravelHistory(formData);
       setProfile({ ...profile, travelHistory: [...(profile.travelHistory || []), entry] });
-      setNewHistory({ country: '', city: '', visit_date: '' });
+      setNewHistory({ country: '', city: '', visit_date: '', description: '', rating: '', photos: null });
     } catch (err) { console.error(err); }
   };
 
@@ -237,11 +244,31 @@ export default function EditProfilePage() {
             <button className="btn btn-ghost btn-icon" onClick={() => handleDeleteHistory(entry.id)}><Trash2 size={16} /></button>
           </div>
         ))}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-          <input className="form-input" placeholder="Country" value={newHistory.country} onChange={e => setNewHistory({ ...newHistory, country: e.target.value })} style={{ flex: 1, minWidth: '120px' }} />
-          <input className="form-input" placeholder="City (optional)" value={newHistory.city} onChange={e => setNewHistory({ ...newHistory, city: e.target.value })} style={{ flex: 1, minWidth: '120px' }} />
-          <input type="date" className="form-input" value={newHistory.visit_date} onChange={e => setNewHistory({ ...newHistory, visit_date: e.target.value })} style={{ width: '160px' }} />
-          <button className="btn btn-secondary btn-sm" onClick={handleAddHistory}><Plus size={16} /> Add</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', padding: '20px', borderRadius: 'var(--radius-md)' }}>
+          <h4 style={{ margin: 0, fontSize: '1rem', marginBottom: '4px' }}>Log New Journey</h4>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <input className="form-input" placeholder="Country *" value={newHistory.country} onChange={e => setNewHistory({ ...newHistory, country: e.target.value })} style={{ flex: 1, minWidth: '150px' }} />
+            <input className="form-input" placeholder="City (optional)" value={newHistory.city} onChange={e => setNewHistory({ ...newHistory, city: e.target.value })} style={{ flex: 1, minWidth: '150px' }} />
+            <input type="date" className="form-input" value={newHistory.visit_date} onChange={e => setNewHistory({ ...newHistory, visit_date: e.target.value })} style={{ width: '160px' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <input className="form-input" placeholder="Travel Description or Quote (optional)" value={newHistory.description} onChange={e => setNewHistory({ ...newHistory, description: e.target.value })} style={{ flex: 2, minWidth: '200px' }} />
+            <select className="form-select" value={newHistory.rating} onChange={e => setNewHistory({ ...newHistory, rating: e.target.value })} style={{ width: '130px' }}>
+              <option value="">No Rating</option>
+              <option value="5">★★★★★ 5</option>
+              <option value="4">★★★★☆ 4</option>
+              <option value="3">★★★☆☆ 3</option>
+              <option value="2">★★☆☆☆ 2</option>
+              <option value="1">★☆☆☆☆ 1</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
+            <label className="btn btn-secondary" style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <Camera size={16} style={{ marginRight: '8px' }} /> {newHistory.photos?.length > 0 ? `${newHistory.photos.length} photos selected` : 'Attach Trip Photos'}
+              <input type="file" multiple accept="image/*" onChange={(e) => setNewHistory({ ...newHistory, photos: e.target.files })} style={{ display: 'none' }} />
+            </label>
+            <button className="btn btn-primary" onClick={handleAddHistory} style={{ flex: 1 }} disabled={!newHistory.country}><Plus size={16} style={{ marginRight: '8px' }} /> Save Journey</button>
+          </div>
         </div>
       </div>
 

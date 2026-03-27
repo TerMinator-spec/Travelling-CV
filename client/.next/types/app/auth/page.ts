@@ -1,4 +1,4 @@
-// File: /app/src/app/auth/page.js
+// File: C:\Users\Admin\.gemini\antigravity\scratch\travelling-cv\client\src\app\auth\page.js
 import * as entry from '../../../../src/app/auth/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

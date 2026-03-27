@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '../../../lib/api';
 import Link from 'next/link';
-import { MapPin, Globe, Calendar, Award, Edit, MessageCircle, BarChart3, Languages, Compass, Heart, Star, Mountain } from 'lucide-react';
+import { MapPin, Globe, Calendar, Award, Edit, MessageCircle, BarChart3, Languages, Compass, Heart, Star, Mountain, Plane, Users, CheckCircle2 } from 'lucide-react';
 import MapPreview from '../../../components/MapPreview';
 
 export default function ProfilePage() {
@@ -12,8 +12,8 @@ export default function ProfilePage() {
   const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [compatibility, setCompatibility] = useState(null);
+  const [topTravelers, setTopTravelers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
   const [timelineRoute, setTimelineRoute] = useState(null);
 
   const isOwnProfile = currentUser?.id === params.id;
@@ -22,16 +22,21 @@ export default function ProfilePage() {
     loadProfile();
   }, [params.id]);
 
+  useEffect(() => {
+    if (currentUser) {
+      loadTopTravelers();
+    }
+  }, [currentUser]);
+
   const loadProfile = async () => {
     try {
       const data = isOwnProfile ? await api.getMyProfile() : await api.getProfile(params.id);
       setProfile(data);
-      
       if (currentUser && !isOwnProfile) {
         try {
           const compat = await api.getCompatibility(params.id);
           setCompatibility(compat);
-        } catch (err) {}
+        } catch (err) { }
       }
     } catch (err) {
       console.error(err);
@@ -40,9 +45,29 @@ export default function ProfilePage() {
     }
   };
 
-  const badgeIcons = {
-    newcomer: '🌱', explorer: '🧭', globetrotter: '🌍', world_traveler: '🏆',
-    continent_hopper: '✈️', nomad: '💻', trekker: '🏔️'
+  const loadTopTravelers = async () => {
+    try {
+      const travelers = await api.discoverTravelers({ limit: 10 });
+      let others = travelers.filter(t => t.id !== currentUser.id);
+
+      const withScores = await Promise.all(others.map(async (t) => {
+        try {
+          const compat = await api.getCompatibility(t.id);
+          return { ...t, compatibility: compat.score };
+        } catch { return { ...t, compatibility: 0 }; }
+      }));
+
+      setTopTravelers(withScores.sort((a, b) => b.compatibility - a.compatibility).slice(0, 3));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const badgeIcons = { newcomer: '🌱', explorer: '🧭', globetrotter: '🌍', world_traveler: '🏆', continent_hopper: '✈️', nomad: '💻', trekker: '🏔️', storyteller: '📷' };
+
+  const getCoverImage = () => {
+    if (profile?.gallery?.length > 0) return profile.gallery[0].image_url;
+    return 'https://images.unsplash.com/photo-1488085061387-422e29b40080?q=80&w=2000&auto=format&fit=crop';
   };
 
   if (loading) return <div className="loading-page page"><div className="spinner" /></div>;
@@ -50,328 +75,269 @@ export default function ProfilePage() {
 
   const cv = profile.cv || {};
   const stats = profile.stats || {};
+  const sortedHistory = profile.travelHistory?.sort((a, b) => new Date(b.visit_date || 0) - new Date(a.visit_date || 0)) || [];
+
+  const getLocationString = (entry) => {
+    if (entry.city && entry.country) return `${entry.city}, ${entry.country}`;
+    return entry.city || entry.country || '';
+  };
 
   return (
-    <div className="page">
-      {/* Hero section */}
-      <div className="profile-hero">
-        <div className="profile-cover" />
-        <div className="profile-info container">
-          <div className="avatar avatar-xxl avatar-placeholder" style={{ margin: '0 auto', border: '4px solid var(--primary)' }}>
-            {profile.avatar ? (
-              <img src={profile.avatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: '2.5rem' }}>{profile.name?.charAt(0)}</span>
-            )}
-          </div>
-          <h1>{profile.name}</h1>
-          {cv.current_location && (
-            <div className="location"><MapPin size={16} /> {cv.current_location}</div>
-          )}
-          {cv.nationality && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '2px' }}>
-              <Globe size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> {cv.nationality}
+    <div className="page" style={{ paddingBottom: '80px' }}>
+      {/* 1. HERO COVER SECTION */}
+      <div className="container" style={{ padding: 0 }}>
+        <div className="profile-cover-immersive" style={{ backgroundImage: `url(${getCoverImage()})` }}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '40px 20px', display: 'flex', alignItems: 'flex-end', gap: '30px', zIndex: 10 }}>
+            {/* Avatar */}
+            <div className="avatar avatar-xxl avatar-placeholder" style={{ border: '4px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', background: 'var(--bg-secondary)', color: 'var(--primary)' }}>
+              {profile.avatar ? <img src={profile.avatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : <span>{profile.name?.charAt(0)}</span>}
             </div>
-          )}
-          {cv.bio && <p className="profile-bio">{cv.bio}</p>}
-          
-          <div className="profile-badges">
-            {profile.badges?.map(b => (
-              <span key={b.id} className="badge">
-                {badgeIcons[b.badge_type] || '🏅'} {b.badge_name}
-              </span>
-            ))}
+
+            {/* User Info Overlay */}
+            <div style={{ color: 'white', flex: 1, paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: '2.5rem', color: 'white', margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{profile.name}</h1>
+
+                {/* 7. BADGES & ACHIEVEMENTS (Inline) */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {profile.badges?.slice(0, 3).map(b => (
+                    <span key={b.id} className="badge" title={b.badge_name}>
+                      {badgeIcons[b.badge_type] || '🏅'} {b.badge_name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '24px', marginTop: '12px', fontSize: '0.95rem', opacity: 0.9 }}>
+                {cv.current_location && <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><MapPin size={16} /> Currently in <strong>{cv.current_location}</strong></div>}
+                {cv.nationality && <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Globe size={16} /> From <strong>{cv.nationality}</strong></div>}
+              </div>
+
+              {cv.bio && <p style={{ marginTop: '12px', fontSize: '1.05rem', maxWidth: '600px', lineHeight: 1.5, opacity: 0.95 }}>"{cv.bio}"</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container profile-grid" style={{ marginTop: '24px', display: 'grid', gridTemplateColumns: '1fr 320px', gap: '32px' }}>
+
+        {/* LEFT COLUMN: MAIN STORY */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+
+          {/* 3. VISUAL TRAVEL STATS */}
+          <div className="grid-4">
+            <div className="card-glass" style={{ textAlign: 'center', padding: '16px' }}>
+              <div style={{ color: 'var(--primary)', marginBottom: '8px', display: 'flex', justifyContent: 'center' }}><Globe size={28} /></div>
+              <div className="stat-value" style={{ fontSize: '1.8rem' }}>{stats.totalCountries || 0}</div>
+              <div className="stat-label">Countries visited</div>
+              {stats.totalCountries > 0 && <div style={{ marginTop: '8px', height: '4px', background: 'rgba(2,132,199,0.1)', borderRadius: '2px' }}><div style={{ width: `${Math.min((stats.totalCountries / 195) * 100, 100)}%`, height: '100%', background: 'var(--primary)', borderRadius: '2px' }} /></div>}
+            </div>
+            <div className="card-glass" style={{ textAlign: 'center', padding: '16px' }}>
+              <div style={{ color: 'var(--success)', marginBottom: '8px', display: 'flex', justifyContent: 'center' }}><MapPin size={28} /></div>
+              <div className="stat-value" style={{ fontSize: '1.8rem' }}>{stats.totalCities || 0}</div>
+              <div className="stat-label">Cities explored</div>
+            </div>
+            <div className="card-glass" style={{ textAlign: 'center', padding: '16px' }}>
+              <div style={{ color: 'var(--accent)', marginBottom: '8px', display: 'flex', justifyContent: 'center' }}><Compass size={28} /></div>
+              <div className="stat-value" style={{ fontSize: '1.8rem' }}>{stats.continentsExplored || 0}</div>
+              <div className="stat-label">Continents</div>
+            </div>
+            <div className="card-glass" style={{ textAlign: 'center', padding: '16px' }}>
+              <div style={{ color: 'var(--warning)', marginBottom: '8px', display: 'flex', justifyContent: 'center' }}><Plane size={28} /></div>
+              <div className="stat-value" style={{ fontSize: '1.8rem' }}>{stats.travelDistanceEstimate ? `${(stats.travelDistanceEstimate / 1000).toFixed(0)}k` : '0'}</div>
+              <div className="stat-label">km Traveled</div>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px' }}>
-            {isOwnProfile ? (
-              <Link href="/profile/edit" className="btn btn-primary">
-                <Edit size={16} /> Edit Profile
-              </Link>
+          {/* 4. TRAVEL MAP (CORE FEATURE) */}
+          <div className="card-glass" style={{ padding: '0', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+              <h2 style={{ fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={20} className="text-primary" /> Interactive Travel Map</h2>
+            </div>
+            {sortedHistory.length > 0 ? (
+              <MapPreview routeStr={timelineRoute || sortedHistory.map(h => getLocationString(h)).filter(Boolean).join(' -> ')} />
             ) : (
-              <>
-                <Link href={`/messages?to=${params.id}`} className="btn btn-primary">
-                  <MessageCircle size={16} /> Message
-                </Link>
-                {compatibility && (
-                  <div className="compat-score" style={{ padding: '10px 20px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>
-                      {compatibility.score >= 80 ? '💚' : compatibility.score >= 60 ? '💛' : '🤍'}
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: '700', fontSize: '1.1rem', color: compatibility.score >= 80 ? 'var(--success)' : compatibility.score >= 60 ? 'var(--accent)' : 'var(--text-primary)' }}>
-                        {compatibility.score}% Compatible
+              <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)' }}>No travel history to map yet.</div>
+            )}
+          </div>
+
+          {/* 5. ABOUT / TRAVEL STORY SECTION */}
+          <div className="card-glass travel-personality">
+            <h2 style={{ fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Compass size={20} /> Travel Personality</h2>
+            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              {profile.name} is a traveler who prefers
+              {cv.travel_style ? ` ${cv.travel_style.toLowerCase().split(',').join(' and ')} destinations` : ' exploring new destinations'}
+              {cv.interests ? `, with a strong interest in ${cv.interests.toLowerCase()}` : ''}.
+              {cv.preferred_months ? ` They typically plan trips around ${cv.preferred_months}.` : ''}
+              {cv.languages ? ` Speaks: ${cv.languages}.` : ''}
+            </p>
+          </div>
+
+          {/* 9. TRAVEL TIMELINE */}
+          <div>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '20px' }}>Travel Timeline</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
+              <div style={{ position: 'absolute', left: '23px', top: '24px', bottom: '24px', width: '3px', background: 'var(--gradient-ocean)', borderRadius: '3px' }}></div>
+              
+              {sortedHistory.map(entry => {
+                const isSelected = timelineRoute === getLocationString(entry);
+                const hasPhotos = entry.photos && entry.photos.length > 0;
+                const photoArray = hasPhotos ? entry.photos.split(',') : [];
+                const coverImage = hasPhotos ? photoArray[0] : `https://picsum.photos/seed/${entry.id}/800/400`;
+                
+                return (
+                  <div 
+                    key={entry.id} 
+                    className="card-glass timeline-route-node" 
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer', marginLeft: '52px', borderRadius: 'var(--radius-lg)', overflow: 'hidden', borderColor: isSelected ? 'var(--primary)' : 'var(--glass-border)', boxShadow: isSelected ? '0 10px 40px rgba(2, 132, 199, 0.15)' : 'var(--glass-shadow)', transform: isSelected ? 'scale(1.02)' : 'scale(1)', padding: 0 }}
+                    onClick={() => setTimelineRoute(prev => prev === getLocationString(entry) ? null : getLocationString(entry))}
+                  >
+                    <div style={{ position: 'absolute', left: '-64px', top: '24px', width: '28px', height: '28px', borderRadius: '50%', background: isSelected ? 'var(--gradient-ocean)' : 'var(--bg-secondary)', border: `4px solid ${isSelected ? 'var(--bg-secondary)' : 'var(--border)'}`, zIndex: 10, transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? 'white' : 'transparent', boxShadow: isSelected ? '0 0 0 4px rgba(2, 132, 199, 0.2)' : 'none' }}>
+                      {isSelected && <MapPin size={12} strokeWidth={3} />}
+                    </div>
+                    
+                    {/* Top Image Section */}
+                    <div style={{ height: '120px', width: '100%', backgroundImage: `url(${coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center', borderBottom: '1px solid var(--border)' }}></div>
+
+                    {/* Bottom Text Section */}
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h4 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>{entry.city || entry.country}</h4>
+                          {entry.city && entry.country && <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={12}/> {entry.country}</div>}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                          <span style={{ padding: '4px 12px', background: 'var(--bg-hover)', borderRadius: '20px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.85rem' }}>{entry.visit_date ? new Date(entry.visit_date).getFullYear() : ''}</span>
+                          {entry.rating && (
+                            <div style={{ display: 'flex', color: '#fbbf24', gap: '2px' }}>
+                              {[...Array(5)].map((_, i) => <Star key={i} size={12} fill={i < entry.rating ? 'currentColor' : 'none'} color={i < entry.rating ? '#fbbf24' : 'var(--border)'} />)}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Travel Match</div>
+                      
+                      {entry.description && (
+                        <p style={{ marginTop: '12px', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, fontStyle: 'italic', borderLeft: '3px solid var(--primary)', paddingLeft: '12px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          "{entry.description}"
+                        </p>
+                      )}
                     </div>
                   </div>
-                )}
+                );
+              })}
+              {sortedHistory.length === 0 && (
+                <div className="empty-state" style={{ marginLeft: '48px' }}><p>No passport stamps yet.</p></div>
+              )}
+            </div>
+          </div>
+
+          {/* 8. TRAVEL GALLERY (PREVIEW GRID) - MOVED TO LEFT COLUMN */}
+          <div className="card-glass">
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Star size={20} /> Travel Photo Gallery</h3>
+            {profile.gallery?.length > 0 ? (
+              <div className="gallery-grid">
+                {profile.gallery.slice(0, 6).map(img => (
+                  <div key={img.id} className="gallery-item">
+                    <img src={img.image_url} alt={img.caption || 'Photo'} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state" style={{ padding: '20px' }}>No photos</div>
+            )}
+            {profile.gallery?.length > 6 && (
+              <button className="btn btn-ghost btn-full" style={{ marginTop: '16px' }}>View all {profile.gallery.length} photos</button>
+            )}
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN: ACTIONS, WIDGETS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* 2. ACTION BUTTONS (ENHANCED) */}
+          <div className="card-glass" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {isOwnProfile ? (
+              <>
+                <Link href="/profile/edit" className="btn btn-primary btn-full" style={{ padding: '16px', fontSize: '1.05rem', borderRadius: '12px' }}><Edit size={20} /> Edit Your Profile</Link>
+                <Link href="/posts/create" className="btn btn-secondary btn-full" style={{ padding: '16px', fontSize: '1.05rem', borderRadius: '12px' }}><Plane size={20} /> Plan a New Trip</Link>
+              </>
+            ) : (
+              <>
+                <Link href={`/messages?to=${params.id}`} className="btn btn-primary btn-full" style={{ padding: '16px', fontSize: '1.05rem', borderRadius: '12px' }}><MessageCircle size={20} /> Message {profile.name.split(' ')[0]}</Link>
+                <Link href="/discover" className="btn btn-secondary btn-full" style={{ padding: '16px', fontSize: '1.05rem', borderRadius: '12px', background: 'var(--gradient-ocean)', color: 'white', border: 'none' }}><Users size={20} /> Find Travel Buddies</Link>
               </>
             )}
           </div>
 
-          {isOwnProfile && profile.completion !== undefined && (
-            <div style={{ marginTop: '24px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px' }}>
-                <span style={{ fontWeight: '600' }}>Profile Completion</span>
-                <span style={{ fontWeight: 'bold', color: profile.completion === 100 ? 'var(--success)' : 'var(--primary)' }}>{profile.completion}%</span>
+          {/* 6. COMPATIBILITY SECTION (Surfaced for Visitors) */}
+          {!isOwnProfile && compatibility && (
+            <div className="card-glass" style={{ borderTop: '4px solid var(--primary)', background: 'linear-gradient(180deg, rgba(2, 132, 199, 0.05) 0%, var(--bg-glass) 100%)' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', textAlign: 'center' }}>Travel Match</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '3rem', fontWeight: '900', background: compatibility.score >= 80 ? 'var(--gradient-aurora)' : compatibility.score >= 50 ? 'var(--gradient-ocean)' : 'var(--text-muted)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  {compatibility.score}%
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Compatibility Score</div>
               </div>
-              <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: `${profile.completion}%`, height: '100%', background: profile.completion === 100 ? 'var(--success)' : 'var(--gradient-primary)', transition: 'width 1s ease' }} />
-              </div>
-              {profile.completion < 100 && (
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>
-                  <Link href="/profile/edit" style={{ color: 'var(--primary)' }}>Edit your profile</Link> to reach 100%!
-                </p>
+
+              {compatibility.matches?.styles?.length > 0 && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>Shared Travel Style</div>
+                  <div className="tags">{compatibility.matches.styles.map(s => <span key={s} className="tag"><CheckCircle2 size={12} /> {s}</span>)}</div>
+                </div>
               )}
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="container" style={{ paddingBottom: '60px' }}>
-        {/* Stats */}
-        <div className="grid-4" style={{ margin: '32px 0' }}>
-          <div className="card stat-card">
-            <div className="stat-value">{stats.totalCountries || 0}</div>
-            <div className="stat-label">Countries</div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-value">{stats.totalCities || 0}</div>
-            <div className="stat-label">Cities</div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-value">{stats.continentsExplored || 0}</div>
-            <div className="stat-label">Continents</div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-value">{stats.travelDistanceEstimate ? `${(stats.travelDistanceEstimate / 1000).toFixed(0)}k` : '0'}</div>
-            <div className="stat-label">km Traveled</div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="tabs">
-          {['overview', 'gallery', 'history', 'compatibility'].map(tab => (
-            <button key={tab} className={`tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {activeTab === 'overview' && (
-          <div className="profile-grid animate-in">
-            <div>
-              {/* Travel Style */}
-              {cv.travel_style && (
-                <div className="profile-section">
-                  <h2><Compass size={20} /> Travel Style</h2>
-                  <div className="tags">
-                    {cv.travel_style.split(',').map(s => <span key={s} className="tag">{s.trim()}</span>)}
+          {/* 10. WISHLIST DESTINATIONS */}
+          {cv.wishlist_destinations && (
+            <div className="card-glass">
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Heart size={18} className="text-danger" /> Wishlist</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {cv.wishlist_destinations.split(',').map(d => (
+                  <div key={d} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--gradient-ocean)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{d.trim().charAt(0)}</div>
+                    <div style={{ fontWeight: '500' }}>{d.trim()}</div>
                   </div>
-                </div>
-              )}
-
-              {/* Languages */}
-              {cv.languages && (
-                <div className="profile-section">
-                  <h2><Languages size={20} /> Languages</h2>
-                  <div className="tags">
-                    {cv.languages.split(',').map(l => <span key={l} className="tag tag-accent">{l.trim()}</span>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Skills */}
-              {cv.skills && (
-                <div className="profile-section">
-                  <h2><Star size={20} /> Travel Skills</h2>
-                  <div className="tags">
-                    {cv.skills.split(',').map(s => <span key={s} className="tag tag-success">{s.trim()}</span>)}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div>
-              {/* Future Plans */}
-              {cv.wishlist_destinations && (
-                <div className="profile-section">
-                  <h2><Heart size={20} /> Wishlist Destinations</h2>
-                  <div className="tags">
-                    {cv.wishlist_destinations.split(',').map(d => <span key={d} className="tag">{d.trim()}</span>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Preferred Months */}
-              {cv.preferred_months && (
-                <div className="profile-section">
-                  <h2><Calendar size={20} /> Preferred Travel Months</h2>
-                  <div className="tags">
-                    {cv.preferred_months.split(',').map(m => <span key={m} className="tag tag-accent">{m.trim()}</span>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Interests */}
-              {cv.interests && (
-                <div className="profile-section">
-                  <h2><Mountain size={20} /> Interests</h2>
-                  <div className="tags">
-                    {cv.interests.split(',').map(i => <span key={i} className="tag tag-success">{i.trim()}</span>)}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'gallery' && (
-          <div className="animate-in">
-            <div className="profile-section">
-              <h2>📸 Travel Gallery</h2>
-              {profile.gallery?.length > 0 ? (
-                <div className="grid-3">
-                  {profile.gallery.map(img => (
-                    <div key={img.id} className="card" style={{ padding: '0', overflow: 'hidden' }}>
-                      <img src={img.image_url} alt={img.caption || 'Travel photo'} style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover' }} />
-                      {img.caption && <div style={{ padding: '12px', fontSize: '0.85rem' }}>{img.caption}</div>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <div className="empty-state-icon">📷</div>
-                  <h3>No photos yet</h3>
-                  <p>{isOwnProfile ? 'Add photos to your gallery to showcase your travels!' : 'This traveler hasn\'t uploaded any photos yet.'}</p>
-                  {isOwnProfile && <Link href="/profile/edit" className="btn btn-primary" style={{ marginTop: '12px' }}>Add Photos</Link>}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="animate-in">
-            {profile.travelHistory?.length > 0 && (
-              <div className="profile-section" style={{ marginBottom: '32px' }}>
-                <MapPreview routeStr={timelineRoute || profile.travelHistory.map(h => h.country).join(' -> ')} />
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>
-                  {timelineRoute ? "Showing selected trip" : "Showing all visited countries route"}
-                </p>
+                ))}
               </div>
-            )}
-            
-            <div className="profile-section">
-              <h2><MapPin size={20} /> Travel Timeline</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px', position: 'relative' }}>
-                {/* Vertical Timeline Line */}
-                <div style={{ position: 'absolute', left: '23px', top: '10px', bottom: '10px', width: '2px', background: 'var(--border)' }}></div>
-                
-                {profile.travelHistory?.sort((a,b) => new Date(b.visit_date || 0) - new Date(a.visit_date || 0)).map(entry => (
-                  <div 
-                    key={entry.id} 
-                    className="card" 
-                    style={{ position: 'relative', padding: '16px', display: 'flex', alignItems: 'center', gap: '20px', cursor: 'pointer', borderColor: timelineRoute === (entry.city ? `${entry.city}, ${entry.country}` : entry.country) ? 'var(--primary)' : 'var(--border)', transition: 'all 0.2s ease', marginLeft: '48px' }}
-                    onClick={() => setTimelineRoute(entry.city ? `${entry.city}, ${entry.country}` : entry.country)}
-                  >
-                    {/* Timeline Node */}
-                    <div style={{ position: 'absolute', left: '-59px', width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-primary)', border: `4px solid ${timelineRoute === (entry.city ? `${entry.city}, ${entry.country}` : entry.country) ? 'var(--primary)' : 'var(--border)'}`, zIndex: 1, transition: 'border-color 0.2s ease' }}></div>
-                    
-                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
-                      ✈️
+            </div>
+          )}
+
+          {/* NEW: TOP COMPATIBLE TRAVELERS WIDGET */}
+          {currentUser && topTravelers.length > 0 && (
+            <div className="card-glass">
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={18} className="text-primary" /> Top Compatible Travelers</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {topTravelers.map(t => (
+                  <Link href={`/profile/${t.id}`} key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', transition: 'transform 0.2s ease', color: 'inherit' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}>
+                    <div className="avatar avatar-sm avatar-placeholder" style={{ border: 'none', overflow: 'hidden' }}>
+                      {t.avatar ? <img src={t.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>{t.name.charAt(0)}</span>}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <h4 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '2px' }}>{entry.country}</h4>
-                      {entry.city && <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{entry.city}</span>}
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t.current_location || 'World Traveler'}</div>
                     </div>
-                    {entry.visit_date && (
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ color: 'var(--primary-light)', fontWeight: '800', fontSize: '1.15rem' }}>{new Date(entry.visit_date).getFullYear() || entry.visit_date}</span>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{new Date(entry.visit_date).toLocaleDateString('default', { month: 'short' })}</div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {(!profile.travelHistory || profile.travelHistory.length === 0) && (
-                  <div className="empty-state">
-                    <div className="empty-state-icon">🌎</div>
-                    <h3>No travel history yet</h3>
-                    <p>This traveler hasn't added any trips to their timeline.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'compatibility' && compatibility && !isOwnProfile && (
-          <div className="animate-in">
-            <div className="card" style={{ maxWidth: '600px', margin: '0 auto', padding: '32px' }}>
-              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '8px' }}>
-                  {compatibility.score >= 80 ? '🎉' : compatibility.score >= 60 ? '👍' : '🤔'}
-                </div>
-                <h2 style={{ fontSize: '2rem', background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  {compatibility.score}% Compatible
-                </h2>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  You and {profile.name} for traveling together
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {Object.entries(compatibility.breakdown || {}).map(([key, value]) => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ width: '140px', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </span>
-                    <div style={{ flex: 1, height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${value}%`, height: '100%', background: value >= 70 ? 'var(--success)' : value >= 40 ? 'var(--accent)' : 'var(--danger)', borderRadius: '4px', transition: 'width 1s ease' }} />
+                    <div style={{ padding: '4px 8px', borderRadius: '12px', background: 'var(--primary-glow)', color: 'var(--primary-dark)', fontWeight: 'bold', fontSize: '0.8rem' }}>
+                      {t.compatibility}% match
                     </div>
-                    <span style={{ width: '40px', textAlign: 'right', fontWeight: '700', fontSize: '0.9rem' }}>{value}%</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
-
-              {compatibility.matches && (
-                <div style={{ marginTop: '24px' }}>
-                  {compatibility.matches.futureDestinations?.length > 0 && (
-                    <div style={{ marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>🎯 Matching Future Destinations</h4>
-                      <div className="tags">{compatibility.matches.futureDestinations.map(d => <span key={d} className="tag">{d}</span>)}</div>
-                    </div>
-                  )}
-                  {compatibility.matches.styles?.length > 0 && (
-                    <div style={{ marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>🎒 Shared Travel Style</h4>
-                      <div className="tags">{compatibility.matches.styles.map(s => <span key={s} className="tag tag-accent">{s}</span>)}</div>
-                    </div>
-                  )}
-                  {compatibility.matches.interests?.length > 0 && (
-                    <div>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>⭐ Common Interests</h4>
-                      <div className="tags">{compatibility.matches.interests.map(i => <span key={i} className="tag tag-success">{i}</span>)}</div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'compatibility' && isOwnProfile && (
-          <div className="empty-state">
-            <div className="empty-state-icon">🤝</div>
-            <h3>View your compatibility with others</h3>
-            <p>Visit another traveler&apos;s profile to see your travel compatibility score!</p>
-            <Link href="/discover" className="btn btn-primary">Discover Travelers</Link>
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* Mobile styling overrides injected directly */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @media (max-width: 900px) {
+          .profile-grid { grid-template-columns: 1fr !important; }
+        }
+      `}} />
     </div>
   );
 }

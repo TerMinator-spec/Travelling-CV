@@ -25,7 +25,7 @@ export function SocketProvider({ children }) {
     const socketUrl = isLocalhost ? 'http://localhost:5000' : (typeof window !== 'undefined' ? window.location.origin : '');
 
     const newSocket = io(socketUrl, {
-      path: '/socket.io',
+      path: '/api/socket.io',
       auth: { token },
       transports: ['websocket', 'polling']
     });

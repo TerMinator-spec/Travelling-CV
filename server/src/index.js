@@ -14,6 +14,7 @@ initializeDatabase();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
+  path: '/api/socket.io',
   cors: {
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],

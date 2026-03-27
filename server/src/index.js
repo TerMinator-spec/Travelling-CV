@@ -22,6 +22,20 @@ const io = new Server(server, {
   }
 });
 
+// CRITICAL FIX: Next.js 'rewrites' natively strips the trailing slash from proxy requests.
+// This transforms `/api/socket.io/?EIO=4` into `/api/socket.io?EIO=4`.
+// Socket.IO's Engine strictly expects the trailing slash, and will ignore the request without it.
+// By hijacking the raw Node.js 'request' event listeners, we can intercept the traffic
+// and repair the URL *before* the Socket.io plugin parses it!
+const listeners = server.listeners('request');
+server.removeAllListeners('request');
+server.on('request', (req, res) => {
+  if (req.url && req.url.startsWith('/api/socket.io?')) {
+    req.url = req.url.replace('/api/socket.io?', '/api/socket.io/?');
+  }
+  listeners.forEach(listener => listener(req, res));
+});
+
 // Middleware
 app.use(cors({
   origin: true,

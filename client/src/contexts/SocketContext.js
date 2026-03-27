@@ -18,7 +18,10 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    const newSocket = io('http://localhost:5000', {
+    // Initialize socket connection dynamically matching the current host port (default 3000)
+    // The Next.js proxy will seamlessly route the /socket.io requests to the backend (5000)
+    const newSocket = io({
+      path: '/socket.io',
       auth: { token },
       transports: ['websocket', 'polling']
     });

@@ -1,7 +1,7 @@
 {
-  "/feed/page": "app/feed/page.js",
   "/auth/page": "app/auth/page.js",
-  "/messages/page": "app/messages/page.js",
   "/profile/[id]/page": "app/profile/[id]/page.js",
+  "/messages/page": "app/messages/page.js",
+  "/feed/page": "app/feed/page.js",
   "/discover/page": "app/discover/page.js"
 }

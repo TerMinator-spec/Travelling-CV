@@ -18,11 +18,18 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    // In local development (next dev), WebSockets natively hang because of proxy bugs.
-    // To solve this, we connect directly to port 5000 if we detect 'localhost', exactly as it was originally.
-    // But in production, we seamlessly connect to the current Live Domain and let Nginx/Next handle the proxy.
-    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    const socketUrl = isLocalhost ? 'http://localhost:5000' : (typeof window !== 'undefined' ? window.location.origin : '');
+    // Next.js's native reverse proxy (rewrites) drops WebSocket Upgrade headers.
+    // If the user accesses the raw EC2 port 3000 (e.g. http://13.235.34.138:3000), Next.js will brick the chat.
+    // We intelligently bypass Next.js by connecting straight to the backend Node container on port 5000 instead!
+    // But if accessed properly through Nginx via a live domain (no '3000' in port), we use the domain origin.
+    let socketUrl = '';
+    if (typeof window !== 'undefined') {
+      if (window.location.port === '3000') {
+        socketUrl = `${window.location.protocol}//${window.location.hostname}:5000`;
+      } else {
+        socketUrl = window.location.origin;
+      }
+    }
 
     const newSocket = io(socketUrl, {
       path: '/api/socket.io',

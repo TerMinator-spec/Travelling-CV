@@ -23,8 +23,8 @@ const nextConfig = {
         destination: `${backendUrl}/uploads/:path*`,
       },
       {
-        source: '/socket.io/:path*',
-        destination: `${backendUrl}/socket.io/:path*`,
+        source: '/api/socket.io/:path*',
+        destination: `${backendUrl}/api/socket.io/:path*`,
       }
     ];
   },

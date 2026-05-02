@@ -18,23 +18,13 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    // Next.js's native reverse proxy (rewrites) drops WebSocket Upgrade headers.
-    // If the user accesses the raw EC2 port 3000 (e.g. http://13.235.34.138:3000), Next.js will brick the chat.
-    // We intelligently bypass Next.js by connecting straight to the backend Node container on port 5000 instead!
-    // But if accessed properly through Nginx via a live domain (no '3000' in port), we use the domain origin.
-    let socketUrl = '';
-    if (typeof window !== 'undefined') {
-      if (window.location.port === '3000') {
-        socketUrl = `${window.location.protocol}//${window.location.hostname}:5000`;
-      } else {
-        socketUrl = window.location.origin;
-      }
-    }
-
-    const newSocket = io(socketUrl, {
+    // Initialize socket connection using a relative path to stay on the current origin.
+    // This allows the connection to work whether on localhost:3000, 13.235.34.138:3000, or travellingcv.com.
+    // Next.js will proxy these requests to the backend.
+    const newSocket = io({
       path: '/api/socket.io',
       auth: { token },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'], // Allow polling as fallback since Next.js rewrites don't natively support WS upgrades well
     });
 
     newSocket.on('connect', () => {

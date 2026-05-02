@@ -30,8 +30,13 @@ const io = new Server(server, {
 const listeners = server.listeners('request');
 server.removeAllListeners('request');
 server.on('request', (req, res) => {
-  if (req.url && req.url.startsWith('/api/socket.io?')) {
-    req.url = req.url.replace('/api/socket.io?', '/api/socket.io/?');
+  if (req.url && req.url.includes('socket.io')) {
+    // console.log('[Socket Debug] Incoming URL:', req.url);
+    if (req.url.startsWith('/api/socket.io?') || req.url === '/api/socket.io') {
+      const oldUrl = req.url;
+      req.url = req.url.replace('/api/socket.io', '/api/socket.io/');
+      // console.log('[Socket Debug] Repaired URL:', req.url);
+    }
   }
   listeners.forEach(listener => listener(req, res));
 });

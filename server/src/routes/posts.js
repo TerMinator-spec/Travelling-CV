@@ -63,7 +63,39 @@ router.get('/feed', optionalAuth, (req, res) => {
 
   const posts = db.prepare(query).all(...params);
 
-  const enriched = posts.map(post => {
+  // Filter out collaboration posts whose trip end date has already passed
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const filteredPosts = posts.filter(post => {
+    if (post.type !== 'collaboration' || !post.travel_dates) return true;
+
+    // Extract all date-like patterns from the travel_dates string
+    // Supports: "2026-04-15", "Mar 15, 2026", "15th march 2026", etc.
+    const dateStr = post.travel_dates;
+
+    // Try to find the end date (part after " to " or " - ")
+    const parts = dateStr.split(/\s+(?:to|-)\s+/);
+    const endPart = parts.length > 1 ? parts[parts.length - 1].trim() : parts[0].trim();
+
+    // Try parsing the end date
+    const parsed = new Date(endPart);
+    if (!isNaN(parsed.getTime())) {
+      return parsed >= today;
+    }
+
+    // Fallback: try to find any YYYY-MM-DD pattern and use the last one
+    const isoMatches = dateStr.match(/\d{4}-\d{2}-\d{2}/g);
+    if (isoMatches && isoMatches.length > 0) {
+      const lastDate = new Date(isoMatches[isoMatches.length - 1]);
+      return lastDate >= today;
+    }
+
+    // If we can't parse the date at all, keep the post visible
+    return true;
+  });
+
+  const enriched = filteredPosts.map(post => {
     const liked = req.user ? db.prepare('SELECT id FROM likes WHERE post_id = ? AND user_id = ?').get(post.id, req.user.id) : null;
     const saved = req.user ? db.prepare('SELECT id FROM saved_posts WHERE post_id = ? AND user_id = ?').get(post.id, req.user.id) : null;
     const commentsList = db.prepare(`

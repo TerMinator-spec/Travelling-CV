@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { api } from '../../lib/api';
@@ -18,38 +18,69 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
+  const selectedUserRef = useRef(null);
+
+  // Keep ref in sync so socket handlers always see the latest value
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/auth');
     if (user) loadConversations();
   }, [user, authLoading]);
 
+  // When navigating via ?to=userId, load the partner profile directly
+  // instead of depending on conversations (which may not have loaded yet)
   useEffect(() => {
     const toId = searchParams.get('to');
     if (toId && user) {
-      loadMessages(toId);
+      (async () => {
+        try {
+          // Always fetch the profile directly to avoid race with conversations loading
+          const profile = await api.getProfile(toId);
+          setSelectedUser({ id: profile.id, name: profile.name, avatar: profile.avatar });
+          const msgs = await api.getMessages(toId);
+          setMessages(msgs);
+        } catch (err) {
+          console.error('Failed to load conversation:', err);
+        }
+      })();
     }
   }, [searchParams, user]);
+
+  // Helper to deduplicate messages by id
+  const addMessageDeduped = useCallback((msg) => {
+    setMessages(prev => {
+      if (prev.some(m => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
     
-    socket.on('new_message', (msg) => {
-      if (selectedUser && msg.sender_id === selectedUser.id) {
-        setMessages(prev => [...prev, msg]);
+    const handleNewMessage = (msg) => {
+      const currentPartner = selectedUserRef.current;
+      if (currentPartner && msg.sender_id === currentPartner.id) {
+        addMessageDeduped(msg);
       }
       loadConversations();
-    });
+    };
 
-    socket.on('message_sent', (msg) => {
-      setMessages(prev => [...prev, msg]);
-    });
+    const handleMessageSent = (msg) => {
+      addMessageDeduped(msg);
+      loadConversations();
+    };
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('message_sent', handleMessageSent);
 
     return () => {
-      socket.off('new_message');
-      socket.off('message_sent');
+      socket.off('new_message', handleNewMessage);
+      socket.off('message_sent', handleMessageSent);
     };
-  }, [socket, selectedUser]);
+  }, [socket, addMessageDeduped]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -67,36 +98,32 @@ export default function MessagesPage() {
     try {
       const msgs = await api.getMessages(userId);
       setMessages(msgs);
-      
-      // If we don't have the partner info, find it or create it
-      const conv = conversations.find(c => c.partner?.id === userId);
-      if (conv) {
-        setSelectedUser(conv.partner);
-      } else {
-        try {
-          const profile = await api.getProfile(userId);
-          setSelectedUser({ id: profile.id, name: profile.name, avatar: profile.avatar });
-        } catch (err) { console.error(err); }
-      }
     } catch (err) { console.error(err); }
   };
 
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedUser) return;
 
-    if (socket) {
+    const messageContent = newMessage;
+    setNewMessage('');
+
+    if (socket && socket.connected) {
       socket.emit('send_message', {
         receiver_id: selectedUser.id,
-        content: newMessage
+        content: messageContent
       });
     } else {
+      // Fallback to REST API if socket is not connected
       try {
-        const msg = await api.sendMessage({ receiver_id: selectedUser.id, content: newMessage });
-        setMessages(prev => [...prev, msg]);
-      } catch (err) { console.error(err); }
+        const msg = await api.sendMessage({ receiver_id: selectedUser.id, content: messageContent });
+        addMessageDeduped(msg);
+        loadConversations();
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        // Restore the message so user doesn't lose it
+        setNewMessage(messageContent);
+      }
     }
-
-    setNewMessage('');
   };
 
   const selectConversation = (conv) => {

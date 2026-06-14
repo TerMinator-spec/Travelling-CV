@@ -167,7 +167,7 @@ export default function MessagesPage() {
         {selectedUser ? (
           <>
             <div className="chat-main-header">
-              <button className="btn btn-ghost btn-icon" onClick={() => setSelectedUser(null)} style={{ display: 'none' }}>
+              <button className="btn btn-ghost btn-icon chat-back-btn" onClick={() => setSelectedUser(null)} style={{ display: 'none' }}>
                 <ArrowLeft size={20} />
               </button>
               <div className="avatar avatar-placeholder" style={{ width: '38px', height: '38px', flexShrink: 0 }}>

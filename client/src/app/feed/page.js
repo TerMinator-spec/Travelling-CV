@@ -98,16 +98,18 @@ export default function FeedPage() {
         {/* MAIN FEED AREA */}
         <main className="feed-main">
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div className="tabs" style={{ marginBottom: '0', borderBottom: 'none', flex: 1 }}>
-          {[
-            { key: 'recent', label: '🕐 Recent' },
-            { key: 'popular', label: '🔥 Popular' },
-          ].map(f => (
-            <button key={f.key} className={`tab ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
-          ))}
+      <div style={{ width: '100%', marginBottom: '24px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
+          <div className="pill-tabs">
+            {[
+              { key: 'recent', label: '🕐 Recent' },
+              { key: 'popular', label: '🔥 Popular' },
+            ].map(f => (
+              <button key={f.key} className={`pill-tab ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
+            ))}
+          </div>
         </div>
-        <div className="tabs" style={{ marginBottom: '0', borderBottom: 'none' }}>
+        <div className="tabs" style={{ marginBottom: '0', borderBottom: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
           <button className={`tab ${typeFilter === '' ? 'active' : ''}`} onClick={() => setTypeFilter('')}>All</button>
           {['experience', 'collaboration', 'advice', 'trip_plan'].map(t => (
             <button key={t} className={`tab ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>
@@ -138,7 +140,7 @@ export default function FeedPage() {
               />
               <div className="post-header">
                 <Link href={`/profile/${post.user_id}`}>
-                  <div className="avatar avatar-placeholder" style={{ width: '42px', height: '42px', fontSize: '1rem' }}>
+                  <div className="avatar avatar-placeholder" style={{ width: '42px', height: '42px', fontSize: '1rem', flexShrink: 0 }}>
                     {post.user_avatar ? (
                       <img src={post.user_avatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                     ) : post.user_name?.charAt(0)}
@@ -220,9 +222,9 @@ export default function FeedPage() {
                   value={commentText[post.id] || ''}
                   onChange={(e) => setCommentText({ ...commentText, [post.id]: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && handleComment(post.id)}
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  style={{ padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 0 }}
                 />
-                <button className="btn btn-primary btn-sm" onClick={() => handleComment(post.id)}>Post</button>
+                <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={() => handleComment(post.id)}>Post</button>
               </div>
             </article>
           ))}

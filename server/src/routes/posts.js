@@ -195,9 +195,27 @@ router.get('/user/saved', authenticateToken, (req, res) => {
     FROM saved_posts sp
     JOIN posts p ON sp.post_id = p.id
     JOIN users u ON p.user_id = u.id
+    WHERE sp.user_id = ?
     ORDER BY sp.created_at DESC
-  `).all();
-  res.json(posts);
+  `).all(req.user.id);
+
+  const enriched = posts.map(post => {
+    const liked = db.prepare('SELECT id FROM likes WHERE post_id = ? AND user_id = ?').get(post.id, req.user.id);
+    const commentsList = db.prepare(`
+      SELECT c.*, u.name as user_name, u.avatar as user_avatar 
+      FROM comments c JOIN users u ON c.user_id = u.id 
+      WHERE c.post_id = ? ORDER BY c.created_at DESC LIMIT 3
+    `).all(post.id);
+
+    return {
+      ...post,
+      liked: !!liked,
+      saved: true,
+      comments: commentsList
+    };
+  });
+
+  res.json(enriched);
 });
 
 // Delete post

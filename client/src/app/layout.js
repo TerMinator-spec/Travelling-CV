@@ -7,6 +7,7 @@ export const metadata = {
   title: 'Travelling CV — Your Travel Resume',
   description: 'Build your travel resume, discover compatible travelers, and collaborate on trips. The LinkedIn for travelers.',
   keywords: 'travel, social platform, travel resume, trip collaboration, backpacking, digital nomad',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0',
 };
 
 export default function RootLayout({ children }) {

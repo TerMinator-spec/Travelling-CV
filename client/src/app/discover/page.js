@@ -93,12 +93,12 @@ export default function DiscoverPage() {
         <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <Filter size={16} style={{ color: 'var(--text-muted)' }} />
-            <select className="form-select" value={filters.travel_style} onChange={e => setFilters({ ...filters, travel_style: e.target.value })} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.85rem' }}>
+            <select className="form-select" value={filters.travel_style} onChange={e => setFilters({ ...filters, travel_style: e.target.value })} style={{ width: 'auto', minWidth: '100px', flex: '1 1 auto', padding: '8px 12px', fontSize: '0.85rem' }}>
               <option value="">All Styles</option>
               {travelStyles.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input className="form-input" placeholder="Country" value={filters.country} onChange={e => setFilters({ ...filters, country: e.target.value })} style={{ width: '140px', padding: '8px 12px', fontSize: '0.85rem' }} />
-            <input className="form-input" placeholder="Location" value={filters.location} onChange={e => setFilters({ ...filters, location: e.target.value })} style={{ width: '140px', padding: '8px 12px', fontSize: '0.85rem' }} />
+            <input className="form-input" placeholder="Country" value={filters.country} onChange={e => setFilters({ ...filters, country: e.target.value })} style={{ minWidth: '100px', flex: '1 1 auto', padding: '8px 12px', fontSize: '0.85rem' }} />
+            <input className="form-input" placeholder="Location" value={filters.location} onChange={e => setFilters({ ...filters, location: e.target.value })} style={{ minWidth: '100px', flex: '1 1 auto', padding: '8px 12px', fontSize: '0.85rem' }} />
             <button className="btn btn-secondary btn-sm" onClick={handleFilter}>Apply</button>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function DiscoverPage() {
         </div>
       ) : (
         /* Traveler Cards */
-        <div className="grid-3">
+        <div className="grid-3" style={{ gap: '16px' }}>
           {travelers.map(t => (
             <div key={t.id} className="traveler-card animate-in">
               <div className="avatar-wrap">

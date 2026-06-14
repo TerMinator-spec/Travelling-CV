@@ -45,7 +45,7 @@ export default function TripsPage() {
 
   return (
     <div className="page container" style={{ paddingBottom: '60px' }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1>Trip Planning</h1>
           <p>Explore open trips and manage your travel collaborations</p>
@@ -78,7 +78,7 @@ export default function TripsPage() {
                   <div style={{ width: '56px', height: '56px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-ocean)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>✈️</div>
                   <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{post.title}</h3>
-                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '8px', fontSize: '0.85rem' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px', fontSize: '0.85rem' }}>
                       {post.destination && <span style={{ color: 'var(--text-accent)' }}><MapPin size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> {post.destination}</span>}
                       {post.travel_dates && <span style={{ color: 'var(--text-secondary)' }}><Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> {post.travel_dates}</span>}
                       {post.budget_estimate && <span style={{ color: 'var(--text-secondary)' }}><DollarSign size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> {post.budget_estimate}</span>}
